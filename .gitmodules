@@ -4,3 +4,6 @@
 [submodule "yolov5"]
 	path = yolov5
 	url = https://github.com/ultralytics/yolov5.git
+[submodule "vehicle_detection_tracker"]
+	path = vehicle_detection_tracker
+	url = https://github.com/sergio11/vehicle_detection_tracker.git
