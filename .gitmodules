@@ -1,3 +1,6 @@
-# [submodule "tracking"]
-# 	path = tracking
-# 	url = https://github.com/ifzhang/ByteTrack.git
+[submodule "tracking"]
+	path = tracking
+	url = https://github.com/ifzhang/ByteTrack.git
+[submodule "yolov5"]
+	path = yolov5
+	url = https://github.com/ultralytics/yolov5.git
