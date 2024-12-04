@@ -25,9 +25,9 @@ class BYTETrackerArgs:
     mot20 = False  # If used, bounding boxes are not clipped.
 
 class VehicleDetector:
-    def __init__(self, rtsp_urls, model_path, device, yaml_path, conf=0.25, iou_thres=0.45) -> None:
+    def __init__(self, rtsp_urls, model_path, device, yaml_path, queue_size=100, conf=0.25, iou_thres=0.45) -> None:
         self.rtsp_urls = rtsp_urls
-        self.queues = [Queue(maxsize=500) for _ in rtsp_urls]
+        self.queues = [Queue(maxsize=queue_size) for _ in rtsp_urls]
         self.class_names = self.load_class_names(yaml_path)
         self.class_colors = self.generate_class_colors(len(self.class_names))
         self.device = device
@@ -113,7 +113,11 @@ class VehicleDetector:
         if show:
             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
-        model = torch.hub.load('ultralytics/yolov5', self.model_path, force_reload=True, verbose=False)
+        if self.model_path.endswith('.pt'):
+            model = torch.hub.load('yolov5', 'custom', path=self.model_path, source='local', force_reload=True, verbose=False)
+        else:
+            model = torch.hub.load('ultralytics/yolov5', self.model_path, force_reload=True, verbose=False)
+
         model.to(self.device)
         model.conf = self.conf
         model.iou = self.iou_thres
