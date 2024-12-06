@@ -12,30 +12,30 @@ def setup_logging(level=logging.INFO):
 
 logger = setup_logging()  # Default to INFO level 
 
+warnings.simplefilter("ignore", category=FutureWarning)
+dotenv.load_dotenv()
+
+MODEL = str(os.getenv("MODEL", "yolov5m")) 
+CONF = float(os.getenv("CONF", 0.5))
+IOU = float(os.getenv("IOU", 0.45))
+QSIZE = int(os.getenv("QSIZE", 500))
+DEVICE = str(os.getenv("DEVICE", "cpu"))
+SHOW = bool(int(os.getenv("SHOW", 1)))
+TRACKING = bool(int(os.getenv("TRACKING", 0)))
+DEBUG = bool(int(os.getenv("DEBUG", 0)))
+RTSP_URLS = os.getenv("RTSP_URLS", "data/video/Khao-Chi-On_CCTV34R.mp4").split(",")
+
+detector = VehicleDetector(
+    rtsp_urls=RTSP_URLS,
+    model_path=MODEL,
+    conf=CONF,
+    iou_thres=IOU,
+    queue_size=QSIZE,
+    yaml_path="data/coco.yaml",
+    device=DEVICE
+)
+
 if __name__ == "__main__":
-    warnings.simplefilter("ignore", category=FutureWarning)
-    dotenv.load_dotenv()
-    
-    MODEL = str(os.getenv("MODEL", "yolov5m")) 
-    CONF = float(os.getenv("CONF", 0.5))
-    IOU = float(os.getenv("IOU", 0.45))
-    QSIZE = int(os.getenv("QSIZE", 500))
-    DEVICE = str(os.getenv("DEVICE", "cpu"))
-    SHOW = bool(int(os.getenv("SHOW", 1)))
-    TRACKING = bool(int(os.getenv("TRACKING", 0)))
-    DEBUG = bool(int(os.getenv("DEBUG", 0)))
-    RTSP_URLS = os.getenv("RTSP_URLS", "data/video/Khao-Chi-On_CCTV34R.mp4").split(",")
-
-    detector = VehicleDetector(
-        rtsp_urls=RTSP_URLS,
-        model_path=MODEL,
-        conf=CONF,
-        iou_thres=IOU,
-        queue_size=QSIZE,
-        yaml_path="data/coco.yaml",
-        device=DEVICE
-    )
-
     detector.run(show=SHOW, tracking=TRACKING, debug=DEBUG)  # Set debug=True to show detailed logs
     
     

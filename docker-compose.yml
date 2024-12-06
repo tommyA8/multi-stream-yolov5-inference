@@ -1,6 +1,7 @@
 services:
   vehicle-tracking:
     build: .
+    image: vehicle-tracking
     container_name: vehicle-tracking
     restart: "no"
     env_file:
@@ -11,7 +12,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
     devices:
       - /dev/dri:/dev/dri  # If you are using GPU or need access to devices
-    # command: bash -c "python3 yolov5/export.py --weights yolov5m.pt --include torchscript --device 0 && python3 main.py"
+    command: bash -c "python3 yolov5/export.py --weights models/yolov5m.pt --include torchscript --device 0 && python3 main.py"
     runtime: nvidia  # If using GPU and NVIDIA runtime
     deploy:
       resources:
