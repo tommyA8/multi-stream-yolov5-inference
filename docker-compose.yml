@@ -1,8 +1,7 @@
 services:
-  doh-vehicle-tracking:
+  vehicle-tracking:
     build: .
-    # image: doh-vehicle-tracking
-    container_name: doh-vehicle-tracking
+    container_name: vehicle-tracking
     restart: "no"
     env_file:
       - .env
@@ -12,6 +11,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
     devices:
       - /dev/dri:/dev/dri  # If you are using GPU or need access to devices
+    # command: bash -c "python3 yolov5/export.py --weights yolov5m.pt --include torchscript --device 0 && python3 main.py"
     runtime: nvidia  # If using GPU and NVIDIA runtime
     deploy:
       resources:
@@ -21,7 +21,7 @@ services:
               count: 1
               capabilities: [gpu]
   gpu-test:
-    image: nvidia/cuda:12.3.1-base-ubuntu20.04
+    image: nvidia/cuda:12.6.3-base-ubuntu24.04
     command: nvidia-smi
     deploy:
       resources:
