@@ -1,40 +1,45 @@
 from src.yolov5_inference import VehicleDetector
-import argparse
+import dotenv
+import os
+import warnings
+import logging
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Vehicle Detection with YOLOv5 and ByteTracker")
-    parser.add_argument('--debug', action='store_true', help="Enable debug level logging")
-    parser.add_argument('--show', action='store_true', help="Show the detection results in a window")
-    parser.add_argument('--tracking', action='store_true', help="Enable object tracking")
-    parser.add_argument('--model', type=str, default="yolov5s", help="YOLOv5 model size (e.g., yolov5s, yolov5m, yolov5l, yolov5x)")
-    parser.add_argument('--conf', type=float, default=0.25, help="Object confidence threshold")
-    parser.add_argument('--iou', type=float, default=0.45, help="IOU threshold for NMS")
-    parser.add_argument('--qsize', type=int, default=128, help="Queue size for each camera")
-    parser.add_argument('--device', type=str, default="cuda", help="Device")
-    # parser.add_argument('--rtsp_urls', nargs='+', required=True, help="List of RTSP URLs or video files")
-    return parser.parse_args()
+# Set up logging configuration
+def setup_logging(level=logging.INFO):
+    logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger()
+    return logger
+
+logger = setup_logging()  # Default to INFO level 
 
 if __name__ == "__main__":
-    import warnings
     warnings.simplefilter("ignore", category=FutureWarning)
-
+    dotenv.load_dotenv()
     
-    args = parse_args()
-    rtsp_urls = ["data/video/Khao-Chi-On_CCTV34R.mp4"]  # Example RTSP streams or local video files
+    MODEL = str(os.getenv("MODEL", "yolov5m")) 
+    CONF = float(os.getenv("CONF", 0.5))
+    IOU = float(os.getenv("IOU", 0.45))
+    QSIZE = int(os.getenv("QSIZE", 500))
+    DEVICE = str(os.getenv("DEVICE", "cpu"))
+    SHOW = bool(int(os.getenv("SHOW", 1)))
+    TRACKING = bool(int(os.getenv("TRACKING", 0)))
+    DEBUG = bool(int(os.getenv("DEBUG", 0)))
+    RTSP_URLS = os.getenv("RTSP_URLS", "data/video/Khao-Chi-On_CCTV34R.mp4").split(",")
 
     detector = VehicleDetector(
-        rtsp_urls,
-        model_path=args.model,
-        conf=args.conf,
-        iou_thres=args.iou,
-        queue_size=args.qsize,
+        rtsp_urls=RTSP_URLS,
+        model_path=MODEL,
+        conf=CONF,
+        iou_thres=IOU,
+        queue_size=QSIZE,
         yaml_path="data/coco.yaml",
-        device=args.device
+        device=DEVICE
     )
 
-    detector.run(show=args.show, tracking=args.tracking, debug=args.debug)  # Set debug=True to show detailed logs
-    # example: python3 main.py --show --tracking --model yolov5m --conf 0.001 --qsize 1000
-
+    detector.run(show=SHOW, tracking=TRACKING, debug=DEBUG)  # Set debug=True to show detailed logs
+    
+    
+    
     # สำหรับดูรอจอดนิ่งๆ ให้จับเวลารถที่ไม่มี tail
     # if len(tail) <= 5:
     #    print("No tail")

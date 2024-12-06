@@ -1,6 +1,7 @@
 import time
 import threading
 import logging
+from collections import defaultdict
 from multiprocessing import Process, Queue
 import torch
 import cv2
@@ -36,7 +37,9 @@ class VehicleDetector:
         self.model_path = model_path
         self.trackers = [BYTETracker(BYTETrackerArgs) for _ in rtsp_urls]
         self.positions = {}
-        self.stop_event = threading.Event()
+        
+        self.stop_events = [threading.Event() for _ in self.rtsp_urls]
+        
         logger.info("VehicleDetector initialized.")
 
     def load_class_names(self, yaml_path):
@@ -51,19 +54,23 @@ class VehicleDetector:
         logger.debug(f"Generated {num_classes} class colors.")
         return colors
 
-    def stream_worker(self, rtsp_url, queue):
+    def stream_worker(self, cam_id, rtsp_url, queue):
         logger.info(f"Starting stream worker for {rtsp_url}.")
         cap = cv2.VideoCapture(rtsp_url)
+        
         while cap.isOpened():
-            if self.stop_event.is_set():
+            if self.stop_events[cam_id].is_set():
                 logger.info(f"Stopping stream worker for {rtsp_url}.")
                 break
+            
             ret, frame = cap.read()
             if not ret:
                 logger.warning(f"Failed to read frame from {rtsp_url}.")
                 break
+            
             if not queue.full():
                 queue.put(frame)
+                
         cap.release()
         logger.info(f"Stream worker for {rtsp_url} finished.")
 
@@ -113,7 +120,7 @@ class VehicleDetector:
         if show:
             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
-        if self.model_path.endswith('.pt'):
+        if "." in self.model_path or "/" in self.model_path:
             model = torch.hub.load('yolov5', 'custom', path=self.model_path, source='local', force_reload=True, verbose=False)
         else:
             model = torch.hub.load('ultralytics/yolov5', self.model_path, force_reload=True, verbose=False)
@@ -123,10 +130,14 @@ class VehicleDetector:
         model.iou = self.iou_thres
 
         logger.info(f"Starting process worker for camera {cam_id}.")
-        while not self.stop_event.is_set():
+        while not self.stop_events[cam_id].is_set():
             try:
                 frame = queue.get(timeout=5)
             except Exception:
+                if queue.empty():
+                    logger.warning(f"Queue for camera {cam_id} is empty.")
+                    self.stop(cam_id, window_name)
+                    
                 time.sleep(0.1)
                 continue
 
@@ -149,28 +160,32 @@ class VehicleDetector:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
-
-        self.processes = []
+        
+        self.worker_processes = defaultdict(list)
+        self.stream_processes = defaultdict(list)
+        
         for cam_id, rtsp_url in enumerate(self.rtsp_urls):
             logger.info(f"Starting process for camera {cam_id} with RTSP URL: {rtsp_url}")
-            stream_proc = Process(target=self.stream_worker, args=(rtsp_url, self.queues[cam_id],))
-            process_proc = Process(target=self.process_worker, args=(cam_id, self.queues[cam_id], f"{cam_id}-{window_name}", show, tracking,))
-
+            stream_proc = Process(target=self.stream_worker, args=(cam_id, rtsp_url, self.queues[cam_id]))
+            process_proc = Process(target=self.process_worker, args=(cam_id, self.queues[cam_id], f"{cam_id}-{window_name}", show, tracking))
+            
             stream_proc.start()
             process_proc.start()
+            
+            self.stream_processes[cam_id].append(stream_proc)
+            self.worker_processes[cam_id].append(process_proc)
 
-            self.processes.append(process_proc)
-            self.processes.append(stream_proc)
 
-    def stop(self):
+    def stop(self, cam_id, window_name):
         logger.info("Stopping the system...")
-        self.stop_event.set()
+        self.stop_events[cam_id].set()
+        
+        self.stream_processes[cam_id][0].terminate()
+        self.stream_processes[cam_id][0].join()
+        self.worker_processes[cam_id][0].terminate()
+        self.worker_processes[cam_id][0].join()
 
-        for proc in self.processes:
-            proc.terminate()
-            proc.join()
-
-        cv2.destroyAllWindows()
+        cv2.destroyWindow(window_name)
         logger.info("System stopped successfully.")
 
 if __name__ == "__main__":
