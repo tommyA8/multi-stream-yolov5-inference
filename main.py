@@ -1,8 +1,11 @@
-from src.yolov5_inference import VehicleDetector
 import dotenv
 import os
 import warnings
 import logging
+from src.yolov5_inference import VehicleDetector
+
+warnings.simplefilter("ignore", category=FutureWarning)
+dotenv.load_dotenv()
 
 # Set up logging configuration
 def setup_logging(level=logging.INFO):
@@ -11,9 +14,6 @@ def setup_logging(level=logging.INFO):
     return logger
 
 logger = setup_logging()  # Default to INFO level 
-
-warnings.simplefilter("ignore", category=FutureWarning)
-dotenv.load_dotenv()
 
 MODEL = str(os.getenv("MODEL", "models/yolov5m.torchscript")) 
 CONF = float(os.getenv("CONF", 0.5))
@@ -34,12 +34,3 @@ if __name__ == "__main__":
     detector.define_classes(classes=CLASSES)
     detector.init_parked_detector(dist_sencitivity=5, time_limit_sec=0.25)
     detector.run(show=SHOW, tracking=TRACKING, debug=DEBUG)  # Set debug=True to show detailed logs
-    
-    
-    
-    # สำหรับดูรอจอดนิ่งๆ ให้จับเวลารถที่ไม่มี tail
-    # if len(tail) <= 5:
-    #    print("No tail")
-    #    จับเวลา
-    #    ถ้าเวลาที่จับได้มากกว่า 5 นาที
-    #    ให้ส่งข้อมูลไปยัง API

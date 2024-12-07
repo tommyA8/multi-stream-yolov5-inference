@@ -18,7 +18,8 @@ class ParkedDetector:
         self.track_ids_time = defaultdict(list)
         self.time_limit = time_limit_sec * 60
         self.dist_sencitivity = dist_sencitivity
-    
+        self.alerted = defaultdict(bool)
+
     def __position_process(self, track_id, cx, cy):
         if track_id not in self.positions:
             self.positions[track_id] = []
@@ -57,15 +58,17 @@ class ParkedDetector:
             cy = (y1 + y2) // 2
 
             self.__position_process(track_id, cx, cy)
-            
+
             parked = self.__parked_vehicle(track_id)
             
-            if parked:
+            if parked and not self.alerted[track_id]:
                 logger.info(f"Track ID: {track_id} is parked for more than {self.time_limit} minutes.")
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                 cv2.putText(frame, f"Track ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
                 cv2.putText(frame, f"Parked for more than {self.time_limit} minutes", (x1, y1 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
                 cv2.imwrite(f"assets/parked_vehicle_pic/cam_{cam_id}_parked_vehicle_{track_id}.jpg", frame)
+                
+                self.alerted[track_id] = True
             
             # Remove the first element if the list is greater than 10
             if len(self.positions[track_id]) > 10:
