@@ -1,5 +1,5 @@
 yolov5/*
-bytetracking/*
+tracking/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
