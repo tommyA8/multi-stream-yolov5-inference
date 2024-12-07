@@ -1,4 +1,4 @@
-# doh-highway-monitoring
+# multi-stream-yolov5-inference
 
 ```bash
 sudo docker compose up --build -d
