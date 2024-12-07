@@ -7,7 +7,9 @@ import torch
 import cv2
 import yaml
 import numpy as np
+
 from tracking.yolox.tracker.byte_tracker import BYTETracker
+from src.parked_detector import ParkedDetector
 
 # Set up logging configuration
 def setup_logging(level=logging.INFO):
@@ -24,7 +26,7 @@ class BYTETrackerArgs:
     aspect_ratio_thresh = 10.0  # Minimum bounding box aspect ratio
     min_box_area = 1.0  # Minimum bounding box area
     mot20 = False  # If used, bounding boxes are not clipped.
-
+                    
 class VehicleDetector:
     def __init__(self, rtsp_urls, model_path, device, yaml_path, queue_size=100, conf=0.25, iou_thres=0.45) -> None:
         self.rtsp_urls = rtsp_urls
@@ -37,11 +39,15 @@ class VehicleDetector:
         self.model_path = model_path
         self.trackers = [BYTETracker(BYTETrackerArgs) for _ in rtsp_urls]
         self.positions = {}
-        
+        self.parked_detectors = None
         self.stop_events = [threading.Event() for _ in self.rtsp_urls]
         
         logger.info("VehicleDetector initialized.")
 
+    def init_parked_detector(self, dist_sencitivity=5, time_limit_sec=0.25):
+        self.parked_detectors = [ParkedDetector(dist_sencitivity, time_limit_sec) for _ in self.rtsp_urls]
+        logger.info("ParkedDetector initialized.")
+        
     def load_class_names(self, yaml_path):
         logger.debug(f"Loading class names from {yaml_path}.")
         with open(yaml_path, 'r') as file:
@@ -78,8 +84,7 @@ class VehicleDetector:
         if tracking:
             for target in results:
                 track_id = int(target.track_id)
-                x1, y1, x2, y2 = target.tlbr
-                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                x1, y1, x2, y2 = map(int, target.tlbr)
                 color = (0, 255, 0)
 
                 cx = (x1 + x2) // 2
@@ -87,9 +92,7 @@ class VehicleDetector:
 
                 if track_id not in self.positions:
                     self.positions[track_id] = []
-
-                self.positions[track_id].append((cx, cy))
-
+                    
                 if len(self.positions[track_id]) > 10:
                     self.positions[track_id].pop(0)
 
@@ -116,10 +119,13 @@ class VehicleDetector:
             cv2.imshow(window_name, frame)
             cv2.waitKey(1)
 
-    def process_worker(self, cam_id, queue, window_name, show, tracking):
-        if show:
-            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-
+    def define_classes(self, classes):
+        for cls in classes:            
+            if cls not in self.class_names.values():
+                raise ValueError(f"Class '{cls}' not found in the class names.")
+        self.class_names = {k: v for k, v in self.class_names.items() if self.class_names[k] in classes}
+ 
+    def __init_model(self):
         if "." in self.model_path or "/" in self.model_path:
             model = torch.hub.load('yolov5', 'custom', path=self.model_path, source='local', force_reload=True, verbose=False)
         else:
@@ -128,7 +134,16 @@ class VehicleDetector:
         model.to(self.device)
         model.conf = self.conf
         model.iou = self.iou_thres
-
+        model.classes = [k for k, _ in self.class_names.items()]
+        return model
+    
+    def process_worker(self, cam_id, queue, window_name, show, tracking):
+        if show:
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        
+        # initialize model
+        model = self.__init_model()
+        
         logger.info(f"Starting process worker for camera {cam_id}.")
         while not self.stop_events[cam_id].is_set():
             try:
@@ -149,7 +164,9 @@ class VehicleDetector:
 
             if tracking:
                 results = self.trackers[cam_id].update(output_results=results, img_info=frame.shape, img_size=frame.shape)
-
+                if self.parked_detectors is not None:
+                    self.parked_detectors[cam_id].detect(results, frame, cam_id)
+                
             self.visualize(frame, results=results, window_name=window_name, show=show, tracking=tracking)
 
         logger.info(f"Process worker for camera {cam_id} finished.")
