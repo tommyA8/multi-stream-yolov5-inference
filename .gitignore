@@ -1,8 +1,8 @@
 yolov5/*
 tracking/*
-# assets/video/buffalo5.mp4
-# assets/video/HuayYai_CCTV06R-M7-6+400-HYI_20210222234006_20210222234207.mp4
-# assets/video/Khao-Chi-On_CCTV34R.mp4
+assets/video/buffalo5.mp4
+assets/video/HuayYai_CCTV06R-M7-6+400-HYI_20210222234006_20210222234207.mp4
+assets/video/Khao-Chi-On_CCTV34R.mp4
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
